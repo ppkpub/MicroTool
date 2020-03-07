@@ -98,6 +98,7 @@ function isHttps(){
           <button class="weui-vcode-btn" onclick="javascript:refreshAddressInfo();">刷新</button>
         </div>
       </div>
+      <p><font size="-2">提示：注册奥丁号只需要花费很少的矿工费用，有0.0001BTC就足够体验了。</font></p>
       
       
       <div class="weui-cell weui-cell_vcode">
@@ -375,8 +376,15 @@ function isHttps(){
       }
 
       var balance = parseFloat($('#addressBalance').val());
+      if(isNaN(balance)){
+          $.alert('请等待获得有效余额后重试','未获得余额');
+          return;
+      }
+      
       if(balance<0.00003){
          $.alert('当前地址的比特币余额不足0.00003 BTC<br>请确认或充值后重试','余额不足');
+      }else if(balance>0.0001){
+         $.alert('当前地址余额超过了0.0001 BTC<br>请调低余额或使用新地址再重试！<br>提示：注册奥丁号只需要花费很少的矿工费用，所以有0.0001BTC就足够体验了。出于比特币的安全使用经验，请确保所使用的地址余额不超过0.0001BTC，且单一地址不要注册太多奥丁号（不超过10个为宜）！','安全提示');
       }else{
         if(!unlockLocalPrivateData()){
           return;
@@ -390,6 +398,16 @@ function isHttps(){
     var unspent = $('#txUnspent').val();
     var balance = parseFloat($('#addressBalance').val());
     var fee = parseFloat('0'+$('#txFee').val());
+    
+    if(isNaN(balance) || balance < 0.00003){
+      $.alert('请确认余额足够后重试','无效余额');
+      return;
+    }
+    
+    if(isNaN(fee) || fee < 0.000005){
+      $.alert('请设置有效的矿工费用！','无效的交易费用');
+      return;
+    }
 
     try {
         var res = parseBase58Check(gStrTempPrvkey); 
