@@ -53,7 +53,7 @@ function isHttps(){
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
-    <title>PPk小工具微信版 - PPk tool for MicroMsg</title>
+    <title>PPk小工具微信版v2 - PPk tool for MicroMsg</title>
     <meta content="ppkpub.org" name="author" />
     <meta content="PPk tool for MircoMsg include Scan&Login,ODIN register" name="description" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
@@ -98,9 +98,10 @@ function isHttps(){
           <button class="weui-vcode-btn" onclick="javascript:refreshAddressInfo();">刷新</button>
         </div>
       </div>
-      <p><font size="-2">提示：注册奥丁号只需要花费很少的矿工费用，有0.0001BTC就足够体验了。</font></p>
+      <p><font size="-2">提示：注册奥丁号只需要花费很少的矿工费用，余额有0.0001BTC就足够体验了。</font></p>
       
-      
+      <input id="newOdinTitle" class="weui-input" type="hidden" value="" >
+      <!--
       <div class="weui-cell weui-cell_vcode">
         <div class="weui-cell__hd">
           <label class="weui-label">附注名称</label>
@@ -109,6 +110,7 @@ function isHttps(){
           <input id="newOdinTitle" class="weui-input" type="text" placeholder="请填写附注信息，也可以不填" >
         </div>
       </div>
+      -->
       
       <div class="weui-cell weui-cell_vcode">
         <div class="weui-cell__hd">
@@ -125,7 +127,7 @@ function isHttps(){
       <p><font size="-2">提示：该交易费用支付给比特币的矿工以确认交易。一般情况下，注册交易被确认需要等待30分钟左右，如需更快确认可以将该费用适当调高。</font></p>
       <a id="btn_register" href="javascript:registerNewODIN();" class="weui-btn weui-btn_warn" style="width: 80%;" disabled=true>注  册</a>     
       
-      <div class="weui-cells__title">当前地址相关奥丁号信息</div>
+      <div class="weui-cells__title">当前地址相关奥丁号信息 <a href="javascript:viewRegisteredODIN();">查看更多>></a></div>
         <div class="weui-cells weui-cells_form">
           <div class="weui-cell">
             <div class="weui-cell__bd">
@@ -165,17 +167,24 @@ function isHttps(){
       <p><br><br></p>
 
       <a id="btn_scan_login" href="javascript:scanQRCode();" class="weui-btn weui-btn_primary" style="width: 80%;">扫一扫用奥丁号登录</a>
+      <br>
+      
+      <a id="btn_test_pns" href="javascript:fastLoginPNS();" class="weui-btn weui-btn_default" style="width: 80%;">快速体验奥丁号托管服务(PNS)</a>
+      <br>
+      <p align="center" class="weui-footer__text"><a href="https://www.chainnode.com/post/434454">通过PNS+区块链，快速创建你的个人或企业链上名片，还有更多...</a></p>
+      <!--<a id="btn_test_pns" href="http://tool.ppkpub.org/ap2/" class="weui-btn weui-btn_default" style="width: 80%;">快速体验标识托管服务(PNS)</a>-->
   
-      <p><br><br><br><br></p>
+      <p><br><br><br></p>
   
       <div class="weui-footer ">
-        <p class="weui-footer__text">PPk小工具微信版 - PPk tool for MicroMsg V0.1.20191022 </p>
+        <p class="weui-footer__text">PPk小工具微信版 - PPk tool for MicroMsg V0.1.20200531 </p>
         <p class="weui-footer__links">
           <a href="http://ppkpub.org" class="weui-footer__link">PPk技术社区 PPkPub.org</a>
         </p>
         
       </div>
     </div>
+    
     <div id="tab_setting" class="weui-tab__bd-item">
       <header class='demos-header'>
         <h1 class="demos-title">设置</h1>
@@ -195,6 +204,7 @@ function isHttps(){
             <a href="javascript:backupPrvkey();" class="weui-btn weui-btn_mini weui-btn_default">备份地址私钥</a>
           </div>
       </div>
+      <p><font size="-2">注意：请备份保存好自己的比特币地址私钥！退出微信重新登录时，微信客户端会删除网页缓存，需要重新导入所备份的比特币地址私钥才能使用。</font></p>
 
       <!--
       <p><br><br></p>
@@ -233,6 +243,12 @@ function isHttps(){
       </div>
       <p class="weui-tabbar__label">以奥丁号登录</p>
     </a>
+    <a href="http://tool.ppkpub.org/ap2/browser.html" class="weui-tabbar__item">
+      <div class="weui-tabbar__icon">
+        <img src="./images/icon_nav_browser.png" alt="">
+      </div>
+      <p class="weui-tabbar__label">浏览PPk网络</p>
+    </a>
     <a href="#tab_setting" id="btn_tab_setting" class="weui-tabbar__item">
       <div class="weui-tabbar__icon">
         <img src="./images/icon_nav_cell.png" alt="">
@@ -247,10 +263,15 @@ function isHttps(){
 <script src="js/qrcode.js"></script>
 <script src="js/rfc1751.js"></script>
 <script src="js/mnemonic.js"></script>
+<!--
+<script src="js/armory.js"></script>
+<script src="js/electrum.js"></script>
+-->
 <script src="js/tx.js"></script>
 <script src="js/bitcoinsig.js"></script>
 <script src="js/secure-random.js"></script>
 <script src="js/asn1.js"></script>
+<!--<script src="js/odinwallet.js"></script>-->
 <script src="js/js.js"></script>
 <script src="js/strength.js"></script>
 
@@ -329,8 +350,9 @@ function isHttps(){
  
   $(document).ready( function() {
       restoreLocalSetting();
-      
+
       var login_confirm_url=getQueryString('login_confirm_url');
+
       if(login_confirm_url!=null && login_confirm_url.length>0){//传入有效登录参数不需要再扫码获取的情况
           promptConfirmLogin(login_confirm_url);
       }
@@ -353,8 +375,8 @@ function isHttps(){
         scanType : [ "qrCode"], // 可以指定扫二维码还是一维码，默认二者都有
         success : function(res) {
           var loginURL = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
-          
-          promptConfirmLogin(loginURL);
+
+           promptConfirmLogin(loginURL);
         }
       });
   }
@@ -366,6 +388,7 @@ function isHttps(){
               title: '提示',
               text: '请先设置你的比特币钱包地址',
               onOK: function () {
+                //$("btn_tab_setting").click();
                 importPrvkey();
               },
               onCancel: function () {
@@ -374,17 +397,17 @@ function isHttps(){
             
          return;
       }
-
+      
       var balance = parseFloat($('#addressBalance').val());
       if(isNaN(balance)){
           $.alert('请等待获得有效余额后重试','未获得余额');
           return;
       }
-      
+
       if(balance<0.00003){
-         $.alert('当前地址的比特币余额不足0.00003 BTC<br>请确认或充值后重试','余额不足');
-      }else if(balance>0.0001){
-         $.alert('当前地址余额超过了0.0001 BTC<br>请调低余额或使用新地址再重试！<br>提示：注册奥丁号只需要花费很少的矿工费用，所以有0.0001BTC就足够体验了。出于比特币的安全使用经验，请确保所使用的地址余额不超过0.0001BTC，且单一地址不要注册太多奥丁号（不超过10个为宜）！','安全提示');
+         $.alert('当前地址的比特币余额不足0.00003 BTC<br>请确认或充值 0.0001 BTC后重试','余额不足');
+      }else if(balance>0.0002){
+         $.alert('当前地址余额超过了0.0002 BTC<br>请调低余额或使用新地址再重试！<br>提示：注册奥丁号只花费很少的矿工费用，一般有0.0001BTC就足够体验，注册多个奥丁号了。<br>出于安全考虑，在此工具里所使用地址的余额不要超过0.0002BTC，且单个地址不要注册太多奥丁号（不超过20个为宜）！ 如有更多功能需求，建议使用PPk安卓应用。','安全提示');
       }else{
         if(!unlockLocalPrivateData()){
           return;
@@ -428,8 +451,9 @@ function isHttps(){
     var eckey = new Bitcoin.ECKey(payload);
 
     eckey.setCompressed(compressed);
-    TX.init(eckey);
 
+    TX.init(eckey);
+    
     var pubkey_hex=Crypto.util.bytesToHex(eckey.getPub());
 
     var fval = 0;
@@ -445,15 +469,18 @@ function isHttps(){
         TX.addOutput(addr, change);
     }
 
-    var sendTx = TX.construct();
-    var txJSON = TX.toBBE(sendTx);
-    var buf = sendTx.serialize();
-    var txHex = Crypto.util.bytesToHex(buf);
+	var sendTx = TX.construct();
+	var txJSON = TX.toBBE(sendTx);
+	var buf = sendTx.serialize();
+	var txHex = Crypto.util.bytesToHex(buf);
+	//setErrorState($('#txJSON'), false, '');
+	$('#txJSON').val(txJSON);
+	$('#txHex').val(txHex);
 
-    $('#txJSON').val(txJSON);
-    $('#txHex').val(txHex);
-
-    if($('#txHex').val().length>0){
+    if($('#txHex').val()==""){
+        //$('#txSend').attr('disabled', true);
+    }else{
+        //$('#txSend').attr('disabled', false);
         sendTX();
     }
   }
@@ -474,6 +501,8 @@ function isHttps(){
     // http://bitsend.rowit.co.uk (defunct)
     // https://btc.com/tools/tx/publish
     // https://insight.bitpay.com/tx/send
+
+    //url = prompt(r + 'Press OK to send transaction to:', url);
 
     if (url != null && url != "") {
         $('#btn_register').html('<div class="weui-loadmore"><i class="weui-loading"></i><span class="weui-loadmore__tips">正在发送注册交易</span></div>');
@@ -529,7 +558,7 @@ function isHttps(){
 
     var str_title_encoded=encodeURI($('#newOdinTitle').val(),"utf-8");
     if(str_title_encoded.length>max_user_input_length){
-    str_title_encoded=str_title_encoded.substr(0,max_user_input_length);
+        str_title_encoded=str_title_encoded.substr(0,max_user_input_length);
     }
 
     var str_odin_setting='{"ver":1,"title":"'+str_title_encoded+'","auth":"0"}';
@@ -636,6 +665,31 @@ function isHttps(){
       }
   }
   
+  function fastLoginPNS(){
+      $.ajax({
+        type: "GET",
+        url: "https://tool.ppkpub.org/ap2/login_uuid.php",
+        xhrFields:{
+            withCredentials:true  //允许客户端带上cookie，这样才能保证session_id跨域一致
+        },
+        data: {},
+        success: function (result) {
+            var obj_resp = (typeof(result)=='string') ? JSON.parse(result) : result ;
+
+            if (obj_resp.code == 0) {
+                //在后端登记成功，获得相应的登录事务号
+                var qruuid=obj_resp.data.qruuid;
+                var confirm_url=obj_resp.data.confirm_url;
+                
+                promptConfirmLogin(confirm_url);  
+            }else{
+                //不能直接登录，则采用跳转页面的方式
+                window.location.href = 'https://tool.ppkpub.org/ap2/';
+            }
+        }
+    });
+  }
+  
   function promptConfirmLogin(loginURL){
       if(gStrCurrentODIN.length==0 || gStrCurrentPrvkeyEncrypted.length==0){
           $.confirm({
@@ -666,13 +720,35 @@ function isHttps(){
             //点击取消
           }
         });
+        
+      /*
+      $.prompt({
+          title: '确认授权 '+gStrCurrentODIN+' 登录下述网址吗？',
+          text: loginURL,
+          input: '请输入解锁密码，未设可忽略',
+          empty: false, // 是否允许为空
+          onOK: function (input) {
+            confirmLogin(loginURL,gStrCurrentODIN);
+          },
+          onCancel: function () {
+            //点击取消
+          }
+        });*/
+  }
+  
+  function formatPPkURI(ppk_uri){
+      var old_resoure_mark_posn=ppk_uri.lastIndexOf("#");
+      if(old_resoure_mark_posn==ppk_uri.length-1) {//自动替换旧版URI中的后缀标志符#
+        ppk_uri = ppk_uri.substring(0, old_resoure_mark_posn)+"*";;
+      }
+      return ppk_uri;
   }
   
   function restoreLocalSetting(){ 
     var local_encrypted=getLocalConfigData('local_encrypted');
     var local_prvkey_encrypted=getLocalConfigData('local_prvkey_encrypted');
     var local_address=getLocalConfigData('local_address');
-    var local_odin=getLocalConfigData('local_odin');
+    var local_odin=formatPPkURI(getLocalConfigData('local_odin'));
     var local_txfee=getLocalConfigData('local_txfee');
     console.log("local_odin="+local_odin+"\nlocal_encrypted="+local_encrypted+"\nlocal_prvkey_encrypted="+local_prvkey_encrypted+"\nlocal_address="+local_address+"\nlocal_txfee="+local_txfee);
     
@@ -764,18 +840,18 @@ function isHttps(){
 
     addressSummary +="已注册数："+r.register_num+"\n";
     if(r.register_num>0){
-        addressSummary +="最近注册的奥丁号：ppk:"+r.last_register_odin.short_odin+"#\n";
-        gStrLastRegisteredODIN = "ppk:"+r.last_register_odin.short_odin+"#";
+        addressSummary +="最近注册的奥丁号：ppk:"+r.last_register_odin.short_odin+"*\n";
+        gStrLastRegisteredODIN = "ppk:"+r.last_register_odin.short_odin+"*";
         
         if(gStrCurrentODIN.length==0){ //默认使用用户比特币地址最新注册的奥丁号作为身份
            updateCurrentODIN(gStrLastRegisteredODIN);  
         }
     }
     
-    if(r.unconfirmed_tx_count)
+    if(r.unconfirmed_tx_count){
         addressSummary +="待确认交易数："+r.unconfirmed_tx_count+"\n";
-        
-    addressSummary +="注：待确认交易数包括注册奥丁号、普通转账等多类交易在内，仅供参考。";
+        addressSummary +="注：待确认交易数包括注册奥丁号、普通转账等多类交易在内，仅供参考。";
+    }
     
     $('#addressSummary').val(addressSummary);
   }
@@ -793,6 +869,11 @@ function isHttps(){
     var value = TX.getBalance();
     var fval = Bitcoin.Util.formatValue(value);
     $('#addressBalance').val(fval);
+    
+    //var fee = parseFloat($('#txFee').val());
+    //var value = Math.floor((fval-fee)*1e8)/1e8;
+    //$('#txValue').val(value);
+    //txRebuild();
     
     $('#btn_register').attr('disabled', $('#txUnspent').val()=="");
   }
@@ -836,6 +917,7 @@ function isHttps(){
       
       var timestamp=new Date().getTime()/1000; 
       var sgMsg = loginURL+","+loginODIN +","+timestamp;
+      //alert('sgMsg='+sgMsg);
 
       if ( !sgMsg || gObjTempKey==null ){
         //alert("Invalid signature");
@@ -845,9 +927,15 @@ function isHttps(){
       
       sgMsg = fullTrim(sgMsg);
 
-      var sgSig = "bitcoin_secp256k1:"+sign_message(gObjTempKey.key, sgMsg, gObjTempKey.compressed, gObjTempKey.addrtype);
+      var sgSig = "BitcoinSignMsg:"+sign_message(gObjTempKey.key, sgMsg, gObjTempKey.compressed, gObjTempKey.addrtype);
+      //alert('sgSig='+sgSig);
+      //$('#sgSig').val(sgSig);
+      
        
       $('#btn_scan_login').html('<div class="weui-loadmore"><i class="weui-loading"></i><span class="weui-loadmore__tips">正在登录</span></div>');
+      //$('#btn_scan_login').className += ' weui-btn_loading';
+      //$('#btn_scan_login').disabled = true;
+      //$('#btn_scan_login').loading = true;
       
       var confirmUrl=vrPermalink(loginURL, loginODIN, sgMsg, sgSig);
       window.location.href = confirmUrl;
@@ -878,7 +966,7 @@ function isHttps(){
             input=input.trim();
             if( !input.startsWith("ppk:")){
                 if(Math.round(input)==input){
-                    input="ppk:"+input+"#";  //对于数字自动补全
+                    input="ppk:"+input+"*";  //对于数字自动补全
                 }else{
                     alert("请输入正确的奥丁号（以 ppk: 起始）");
                     return;
@@ -892,12 +980,23 @@ function isHttps(){
             //点击取消
           }
         });
+      /*
+     $.modal({
+          title: "请输入用作身份标识的奥丁号",
+          text: '请输入用下述比特币地址注册的奥丁号：<br>'+currentAddress+"<br>如该比特币地址尚未注册奥丁号，请先注册后再设置使用。",
+          buttons: [
+            { text: "取消", className: "default", onClick: function(){ console.log(3)} },
+            { text: "确认", onClick: function(){ console.log(1)} },
+            { text: "注册新奥丁号", onClick: function(){ console.log(2)} },
+            
+          ]
+        });*/
   }
   
   function updateCurrentODIN(odin){
       gStrCurrentODIN = odin;
-      if(!gStrCurrentODIN.endsWith("#")) //自动补全标识后缀
-          gStrCurrentODIN += "#";
+      if(!gStrCurrentODIN.endsWith("*")) //自动补全标识后缀
+          gStrCurrentODIN += "*";
                 
       $('#loginODIN').val(gStrCurrentODIN);
       saveLocalConfigData('local_odin',gStrCurrentODIN);
@@ -974,7 +1073,7 @@ function isHttps(){
       }
       
      /*
-      //采用WEUI的这个输入对话框控件，但在某些IOS版本下无法复制粘贴，待进一步测试确认
+      //注意：WEUI的这个输入对话框，在IOS版本下可能无法粘贴
       $.prompt({
           title: '导入比特币地址',
           text: '请输入要导入的比特币地址私钥（以5,K或L起始）',
@@ -993,8 +1092,7 @@ function isHttps(){
           }
         });
     */
-    
-    //采用JS原生的输入对话框控件
+     
     var input_str = prompt("请输入要导入的比特币地址私钥（以5,K或L起始）", "");
     if( input_str!=null && input_str.length>0 ){
         var p=getEcKey(input_str);
@@ -1193,6 +1291,7 @@ function isHttps(){
          return str;
     
     var passwordHash = Crypto.util.bytesToHex( Crypto.SHA256(password, { asBytes: true }) );
+    //console.log('passwordHash:'+passwordHash);
     
     // 密钥 16 位
     var key = passwordHash.substr(0,16) ;
@@ -1201,6 +1300,9 @@ function isHttps(){
      
     key = CryptoJS.enc.Utf8.parse(key);
     iv = CryptoJS.enc.Utf8.parse(iv);
+    
+    //console.log('key:'+key);
+    //console.log('iv:'+iv);
     
     // mode 支持 CBC、CFB、CTR、ECB、OFB, 默认 CBC
     // padding 支持 Pkcs7、AnsiX923、Iso10126
