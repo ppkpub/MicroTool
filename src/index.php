@@ -243,11 +243,17 @@ function isHttps(){
       </div>
       <p class="weui-tabbar__label">以奥丁号登录</p>
     </a>
-    <a href="http://tool.ppkpub.org/ap2/browser.html" class="weui-tabbar__item">
+    <a id="app_browser_url" href="http://tool.ppkpub.org/demo/browser/?back=https://ppk001.sinaapp.com/odin/" class="weui-tabbar__item">
       <div class="weui-tabbar__icon">
         <img src="./images/icon_nav_browser.png" alt="">
       </div>
       <p class="weui-tabbar__label">浏览PPk网络</p>
+    </a>
+    <a id="app_pay_url" href="https://tool.ppkpub.org/demo/pay/?back=https://ppk001.sinaapp.com/odin/" class="weui-tabbar__item">
+      <div class="weui-tabbar__icon">
+        <img src="./images/icon_nav_pay.png" alt="">
+      </div>
+      <p class="weui-tabbar__label">用奥丁号转账</p>
     </a>
     <a href="#tab_setting" id="btn_tab_setting" class="weui-tabbar__item">
       <div class="weui-tabbar__icon">
@@ -350,9 +356,11 @@ function isHttps(){
  
   $(document).ready( function() {
       restoreLocalSetting();
+      
+      document.getElementById('app_pay_url').href = "https://tool.ppkpub.org/demo/pay/?to="+encodeURIComponent(gStrCurrentODIN)+"&back="+encodeURIComponent("https://ppk001.sinaapp.com/odin/");
 
       var login_confirm_url=getQueryString('login_confirm_url');
-
+      //alert("login_confirm_url="+login_confirm_url);
       if(login_confirm_url!=null && login_confirm_url.length>0){//传入有效登录参数不需要再扫码获取的情况
           promptConfirmLogin(login_confirm_url);
       }
@@ -375,7 +383,24 @@ function isHttps(){
         scanType : [ "qrCode"], // 可以指定扫二维码还是一维码，默认二者都有
         success : function(res) {
           var loginURL = res.resultStr; // 当needResult 为 1 时，扫码返回的结果
-
+          
+          //$('#loginURL').val(result);
+          //$('#sgMsg').val(result+", login as "+$('#loginODIN').val());
+          
+          /*
+          $.login({
+              title: '请确认登录下述网址',
+              text: '内容文案',
+              username: 'tom',  // 默认用户名
+              password: 'tom',  // 默认密码
+              onOK: function (username, password) {
+                //点击确认
+              },
+              onCancel: function () {
+                //点击取消
+              }
+            });
+            */
            promptConfirmLogin(loginURL);
         }
       });
@@ -454,7 +479,11 @@ function isHttps(){
 
     TX.init(eckey);
     
+    //var curve = getSECCurveByName("secp256k1");
+    //var gen_pt = curve.getG().multiply(eckey.priv);
+    //var pubkey = getEncoded(gen_pt, compressed);
     var pubkey_hex=Crypto.util.bytesToHex(eckey.getPub());
+    //console.log.log('pubkey_hex=',pubkey_hex);
 
     var fval = 0;
     var o = txGetODINOutputScripts(pubkey_hex);
@@ -469,14 +498,19 @@ function isHttps(){
         TX.addOutput(addr, change);
     }
 
-	var sendTx = TX.construct();
-	var txJSON = TX.toBBE(sendTx);
-	var buf = sendTx.serialize();
-	var txHex = Crypto.util.bytesToHex(buf);
-	//setErrorState($('#txJSON'), false, '');
-	$('#txJSON').val(txJSON);
-	$('#txHex').val(txHex);
-
+    //try {
+        var sendTx = TX.construct();
+        var txJSON = TX.toBBE(sendTx);
+        var buf = sendTx.serialize();
+        var txHex = Crypto.util.bytesToHex(buf);
+        //setErrorState($('#txJSON'), false, '');
+        $('#txJSON').val(txJSON);
+        $('#txHex').val(txHex);
+    /*} catch(err) {
+        alert('err=',err);
+        $('#txJSON').val('');
+        $('#txHex').val('');
+    }*/
     if($('#txHex').val()==""){
         //$('#txSend').attr('disabled', true);
     }else{
