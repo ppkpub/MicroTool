@@ -10,6 +10,9 @@ if( strtolower(substr($current_url,0,5)) == 'http:' ){
     exit(-1);
 }
 
+//自动检测来源客户端类型
+$now_app_type = getClientType();
+
 $jssdk = new JSSDK(WEIXIN_APP_ID, WEIXIN_APP_SECRET); //初始化微信JSSDK接口,以触发扫一扫功能
 $signPackage = $jssdk->GetSignPackage();
 
@@ -49,11 +52,44 @@ function isHttps(){
     return FALSE;
 }
 
+function getClientType(){
+    global $_SERVER;
+    $ua = $_SERVER['HTTP_USER_AGENT'];
+    $now_app_type = '';
+    if( strpos($ua, 'MicroMessenger') ) {
+        $now_app_type='wepay';
+    }elseif( strpos($ua, 'Alipay') ) {
+        $now_app_type='alipay';
+    }elseif( strpos($ua, 'QQ/') ) {
+        $now_app_type='qqpay';
+    }elseif( strpos($ua, 'imToken') ) {
+        $now_app_type='imtoken'; 
+    }elseif( strpos($ua, 'TokenPocket') ) {
+        $now_app_type = 'tokenpocket';
+    }elseif( strpos($ua, 'mathwallet') ) {
+        $now_app_type = 'mathwallet';
+    }elseif( strpos($ua, 'bitpie') ) {
+        $now_app_type = 'bitpie';
+    }else{
+        //其它条件判断
+        $array_headers = getallheaders();
+
+        $x_requester = @$array_headers['X-Requested-With'];
+        $x_cookie = @$array_headers['Cookie'];
+        
+        if ( strpos($ua, 'ppkpub') || strpos($x_requester, 'ppkpub')   ) {
+            $now_app_type = 'ppkpub';
+        }else if ( strpos($ua, 'bycoin') || strpos($x_requester, 'bycoin') || strpos($x_cookie, 'from=Bycoin;')!==false  ) {
+            $now_app_type = 'bycoin';
+        }
+    }
+    return $now_app_type;
+}
 ?><!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
     <meta charset="utf-8" />
-    <title>PPk小工具微信版v2 - PPk tool for MicroMsg</title>
+    <title>PPk小工具 - PPk MicroTool v3</title>
     <meta content="ppkpub.org" name="author" />
     <meta content="PPk tool for MircoMsg include Scan&Login,ODIN register" name="description" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
@@ -61,31 +97,157 @@ function isHttps(){
 
     <link rel="stylesheet" href="https://cdn.bootcss.com/weui/1.1.3/style/weui.min.css">
     <link rel="stylesheet" href="https://cdn.bootcss.com/jquery-weui/1.2.1/css/jquery-weui.min.css">
-    <link rel="stylesheet" href="css/ppktool.css">
-
-   
+    <link rel="stylesheet" href="css/ppktool.css?20201226">
 </head>
 <body ontouchstart >
 
 <div class="weui-tab">
   <div class="weui-tab__bd">
-    <div id="tab_register" class="weui-tab__bd-item">
+    <div id="tab_pay"  class="weui-tab__bd-item weui-tab__bd-item--active">
+      <h1 class="demos-title">奥丁号收付款</h1>
+      <br>
+      <div id="history_odins_area" style="display:none;">
+        <div id="history_odins" align="center"></div>
+      </div>
+      
+      <input type="hidden" id="select_dest_odin" value="">
+        
+      <center>
+      <div id="qrcode_payto">
+        <center><img src="https://tool.ppkpub.org/image/blank.png" width="100" height="100"></center>
+      </div>
+
+      <div style="border: 0px solid; margin: 0 auto;" onclick="selectHistoryODIN();">
+        <img id="qrCodeIcoPayTo" style="vertical-align:middle;width:32px;height:32px;border-radius:6px;" src="https://tool.ppkpub.org/image/user.png" alt="" >
+        <span style="display: inline-block;vertical-align: middle;padding: 5px 0;font-size:12px;text-align: left;"><span id="dest_title" ></span><br><span id="payto_odin_uri" style="font-weight:bold;"></span><img src="images/edit.png" style="vertical-align:middle;" width="16" height="16"   alt="点击更换" ></span>
+      </div>
+
+      <h3>请使用数字钱包客户端扫码付款</h3>
+      <p class="weui-msg__desc">可用以太坊imToken、比原Bycoin、支付宝、微信等APP</p>
+      <p>
+      <button class="weui-btn weui-btn_mini  weui-btn_primary" style="width: 45%;" id="btn_shareQrCode" onclick="shareQrCode( );">分享收款码</button> 
+      <button class="weui-btn weui-btn_mini ppk-bg" style="width: 45%;"  id="btn_testQrCode" onclick="testQrCode( );">向奥丁号付款</button>
+      <br>
+      <a href="javascript:gotoSetting( );" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 32%;" target="_top">注册奥丁号</a> 
+      <a href="javascript:gotoURL('https://tool.ppkpub.org/swap/','正在打开奥丁号拍卖交换工具' );" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 30%;"  target="_top">拍卖交换</a> 
+      <a href="javascript:fastLoginPNS();" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 32%;" target="_top">关联多钱包</a>
+      <br>
+      <a href="javascript:gotoURL('http://47.114.169.156:9876/','正在打开奥丁号查询工具' );" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 32%;" target="_top">查询奥丁号</a> 
+      <a href="https://ppk001.sinaapp.com/docs/help_ppkbrowser/" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 30%;"  target="_top">安卓应用</a> 
+      <a href="javascript:openPPkBrowser();" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 32%;" target="_top">更多应用</a>
+      </p>
+    
+      </center>
+     
+      <p><br></p>
+      <p align="center" class="weui-footer__text">
+      <a href="https://ppk001.sinaapp.com/docs/help_odin/" target="_blank">★ 奥丁号是数字资产和区块链应用的通用名和门牌号，点击了解</a>
+      <br><br>
+      <a href="https://ppk001.sinaapp.com/docs/help_odintool/" target="_blank">★ 如何注册和让自己的奥丁号关联多个钱包地址?</a>
+      <br><br>
+      <!--<a href="https://ppk001.sinaapp.com/docs/help_pns/" target="_blank">★ 如何托管奥丁号获得更多功能?</a>
+      <br><br>-->
+      <a href="https://ppk001.sinaapp.com/docs/help_ppkbrowser/" target="_blank">★ 通过PPk安卓应用来管理自己的奥丁号包括转移过户</a>
+      </p>
+      
+      <br>
+      <p align="center" class="weui-msg__desc">
+      本应用来自开放分享，实际使用请遵守当地法律法规。<br>
+      Released under the MIT License.<br>
+      Please abide by local laws and regulations！
+      </p>
+      <br><br>
+
+    </div>
+
+    <div id="tab_scan" class="weui-tab__bd-item">
       <header class='demos-header'>
-        <h1 class="demos-title">注册新的奥丁号</h1>
+        <h1 class="demos-title">以奥丁号登录</h1>
       </header>
+      
+      <div class="weui-cell weui-cell_vcode">
+        <div class="weui-cell__hd">
+          <label class="weui-label">我的奥丁号</label>
+        </div>
+        <div class="weui-cell__bd">
+          <input id="loginODIN"  class="weui-input" type="text" placeholder="请设置登录使用的奥丁号" readonly  onclick="javascript:changeCurrentODIN();">
+        </div>
+        <div class="weui-cell__ft">
+          <button class="weui-vcode-btn" onclick="javascript:changeCurrentODIN();">换一个</button>
+        </div>
+      </div>
+      
+      <p><br><br></p>
+
+      <a id="btn_scan_login" href="javascript:scanForLogin();" class="weui-btn weui-btn_primary" style="width: 80%;">扫一扫用奥丁号登录</a>
+      <br>
+      
+      <a id="btn_test_pns" href="javascript:fastLoginPNS();" class="weui-btn weui-btn_default" style="width: 80%;">快速体验奥丁号托管服务(PNS)</a>
+      <br>
+      <p align="center" class="weui-footer__text"><a href="https://ppk001.sinaapp.com/docs/help_pns/">通过PNS+区块链，快速创建你的个人或企业链上名片，还有更多...</a></p>
+      <!--<a id="btn_test_pns" href="https://ppk001.sinaapp.com/ap2/" class="weui-btn weui-btn_default" style="width: 80%;">快速体验标识托管服务(PNS)</a>-->
+  
+      
+    </div>
+    
+    
+    
+    <div id="tab_setting" class="weui-tab__bd-item">
+      <h1 class="demos-title">我的设置</h1>
+      <br>
+      <div class="weui-cell weui-cell_vcode">
+        <div class="weui-cell__hd">
+          <label class="weui-label">我的奥丁号</label>
+        </div>
+        <div class="weui-cell__bd">
+          <input id="currentODIN"  class="weui-input" type="text" placeholder="请设置默认使用的奥丁号" readonly  onclick="javascript:changeCurrentODIN();">
+        </div>
+        <div class="weui-cell__ft">
+          <button class="weui-vcode-btn" onclick="javascript:changeCurrentODIN();">换一个</button>
+        </div>
+      </div>
+      
+      <div class="weui-cell">
+        <div class="weui-cell__hd">
+          <label class="weui-label"></label>
+        </div>
+        <div class="weui-cell__bd">
+          <img id="current_avatar" style="vertical-align:middle;width:32px;height:32px;border-radius:6px;" src="https://tool.ppkpub.org/image/user.png" alt=""><span id="current_title"></span> <img src="images/edit.png" style="vertical-align:middle;" width="16" height="16"   alt="编辑" onClick="fastLoginPNS();">
+        </div>
+      </div>
       
       <div class="weui-cell weui-cell_vcode">
         <div class="weui-cell__hd">
           <label class="weui-label">比特币地址</label>
         </div>
         <div class="weui-cell__bd">
-          <input id="registerAdddress"  class="weui-input" type="text" placeholder="请设置注册使用的比特币地址" readonly >
-        </div>
-        <div class="weui-cell__ft">
-          <button class="weui-vcode-btn" onclick="javascript:importPrvkey();">设置</button>
+          <input id="currentBtcAddress" class="weui-input weui-footer__text" type="text" placeholder="请设置你的比特币钱包地址" readonly>
         </div>
       </div>
-
+      <div class="button_sp_area" align="right">
+        <a href="javascript:newPrvKey();" class="weui-btn weui-btn_mini weui-btn_primary">生成新地址</a>
+        <a href="javascript:importPrvkey(true);" class="weui-btn weui-btn_mini weui-btn_primary" id="btn_importPrvkey">导入已有地址</a>
+        <a href="javascript:backupPrvkey();" class="weui-btn weui-btn_mini weui-btn_primary">备份地址私钥</a>
+      </div>
+      
+      
+      <div id="inputPrvkeyArea" style="display:none">
+        <div>导入比特币地址私钥（以5,K或L起始的字符串）</div>
+        <div class="weui-cells">
+          <div class="weui-cell">
+            <div class="weui-cell__bd">
+              <input id="inputPrvkey" class="weui-input" type="text" placeholder="请在这里输入或粘贴要导入的比特币地址私钥" autocomplete="off" >
+            </div>
+          </div>
+          
+          <div align="center">
+            <a href="javascript:confirmImportPrvkey();" class="weui-btn weui-btn_mini weui-btn_warn" id="btn_confirmImportPrvkey">确认导入</a>
+          </div>
+        </div>
+      </div>
+      
+      <p class="weui-msg__desc">注意：请备份保存好自己的比特币地址私钥！退出后重新打开时，网页缓存可能会过期失效，需要重新导入所备份的比特币地址私钥才能使用。</p>
+      
       <div class="weui-cell weui-cell_vcode">
         <div class="weui-cell__hd">
           <label class="weui-label">可用余额</label>
@@ -97,7 +259,7 @@ function isHttps(){
           <button class="weui-vcode-btn" onclick="javascript:refreshAddressInfo();">刷新</button>
         </div>
       </div>
-      <p><font size="-2">提示：注册奥丁号只需要花费很少的矿工费用，余额有0.0001BTC就足够体验了。</font></p>
+      <p class="weui-msg__desc">提示：注册奥丁号只需要花费很少的矿工费用，余额有0.0001BTC就足够体验了。</p>
       
       <input id="newOdinTitle" class="weui-input" type="hidden" value="" >
       <!--
@@ -123,126 +285,26 @@ function isHttps(){
         </div>
       </div>
 
-      <p><font size="-2">提示：该交易费用支付给比特币的矿工以确认交易。一般情况下，注册交易被确认需要等待30分钟左右，如需更快确认可以将该费用适当调高。</font></p>
-      <a id="btn_register" href="javascript:registerNewODIN();" class="weui-btn weui-btn_warn" style="width: 80%;" disabled=true>注  册</a>     
-      
+      <p class="weui-msg__desc">提示：该交易费用支付给比特币的矿工以确认交易。一般情况下，注册交易被确认需要等待30分钟左右，如需更快确认可以将该费用适当调高。</p>
+      <p align="center">
+      <a id="btn_register" href="javascript:registerNewODIN();" class="weui-btn weui-btn_mini ppk-bg" style="width: 80%;" disabled=true>快速在比特币链上注册一个新奥丁号</a>     
+      </p>
       <div class="weui-cells__title">当前地址相关奥丁号信息 <a href="javascript:viewRegisteredODIN();">查看更多>></a></div>
-        <div class="weui-cells weui-cells_form">
+      <div class="weui-cells weui-cells_form">
           <div class="weui-cell">
             <div class="weui-cell__bd">
-              <textarea id="addressSummary" class="weui-textarea" placeholder="" rows="5" readonly></textarea>
+              <textarea id="addressSummary" class="weui-textarea weui-footer__text" placeholder="" rows="5" readonly></textarea>
             </div>
           </div>
       </div>
-      
-      <a href="javascript:viewRegisteredODIN();" class="weui-btn weui-btn_plain-default" style="width: 80%;">查看更多注册信息</a>
-
+      <!--
+      <p align="center"><a href="javascript:viewRegisteredODIN();" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 80%;">查看更多注册信息</a></p>
+      -->
       <div id="hidden_data_area" style="display:none;">
           <textarea id="txUnspent" class="weui-textarea" placeholder="" rows="2"></textarea>
           <textarea id="txJSON" class="weui-textarea" placeholder="" rows="2"></textarea>
           <textarea id="txHex" class="weui-textarea" placeholder="" rows="2"></textarea>
       </div>
-      
-    </div>
-    <div id="tab_scan" class="weui-tab__bd-item weui-tab__bd-item--active">
-      <header class='demos-header'>
-        <h1 class="demos-title">以奥丁号登录</h1>
-      </header>
-      
-      <div class="weui-cell weui-cell_vcode">
-        <div class="weui-cell__hd">
-          <label class="weui-label">你的奥丁号</label>
-        </div>
-        <div class="weui-cell__bd">
-          <input id="loginODIN"  class="weui-input" type="text" placeholder="请设置登录使用的奥丁号" readonly  onclick="javascript:changeCurrentODIN();">
-        </div>
-        <div class="weui-cell__ft">
-          <button class="weui-vcode-btn" onclick="javascript:changeCurrentODIN();">换一个</button>
-        </div>
-      </div>
-      
-      
-      
-      <p><br><br></p>
-
-      <a id="btn_scan_login" href="javascript:scanQRCodeForLogin();" class="weui-btn weui-btn_primary" style="width: 80%;">扫一扫用奥丁号登录</a>
-      <br>
-      
-      <a id="btn_test_pns" href="javascript:fastLoginPNS();" class="weui-btn weui-btn_default" style="width: 80%;">快速体验奥丁号托管服务(PNS)</a>
-      <br>
-      <p align="center" class="weui-footer__text"><a href="https://www.chainnode.com/post/434454">通过PNS+区块链，快速创建你的个人或企业链上名片，还有更多...</a></p>
-      <!--<a id="btn_test_pns" href="http://tool.ppkpub.org/ap2/" class="weui-btn weui-btn_default" style="width: 80%;">快速体验标识托管服务(PNS)</a>-->
-  
-      
-    </div>
-    
-    <div id="tab_pay"  class="weui-tab__bd-item">
-      <header class='demos-header'>
-        <h1 class="demos-title">用奥丁号转账</h1>
-      </header>
-      
-      <div id="history_odins_area" style="display:none;">
-        <div id="history_odins" align="center"></div>
-      </div>
-      
-      <div class="weui-cell weui-cell_vcode">
-        <div class="weui-cell__hd">
-          <label class="weui-label">收款人</label>
-        </div>
-        <div class="weui-cell__bd">
-          <input id="dest_odin_uri"  class="weui-input" type="text" placeholder="请输入收款人的奥丁号"  onChange="javascript:refreshDestQrCode( );">
-        </div>
-        <div class="weui-cell__ft">
-          <button class="weui-vcode-btn" id="btn_selectAddress" onclick="selectHistoryODIN( );">常用</button>
-        </div>
-      </div>
-      
-      <input type="hidden" id="select_dest_odin" value="">
-      
-      <center>
-      <p><button class="weui-btn weui-btn_mini  weui-btn_default"  id="btn_refreshDestQrCode" onclick="refreshDestQrCode( );">刷新收款码</button></p>
-      
-      <div id="qrcode_img" ></div>
-      <p><font size="-2"><span id="scan_title">收款人</span>( <span id="scan_address"></span> )</font></p>
-      <br>
-      <p><button class="weui-btn weui-btn_mini  weui-btn_primary"  id="btn_shareQrCode" onclick="shareQrCode( );">分享收款码</button> <button class="weui-btn weui-btn_mini  weui-btn_default"  id="btn_testQrCode" onclick="testQrCode( );">测试效果</button></p>
-    
-      </center>
-     
-      <p><br></p>
-      
-      
-      <br>
-      <p align="center" class="weui-footer__text"><a href="https://www.chainnode.com/post/434454" target="_blank">如何获得和让自己的奥丁号关联多个钱包地址?</a></p>
-      <!--<a id="btn_test_pns" href="http://tool.ppkpub.org/ap2/" class="weui-btn weui-btn_default" style="width: 80%;">快速体验标识托管服务(PNS)</a>-->
-      
-      <br><br><font size="-3">
-This sample is for learning and research purposes only. Please abide by local laws and regulations for actual use！<br>
-本示例仅供学习研究之用，实际使用行为请遵守当地法律法规，与本示例无关。</font>
-  
-  
-    </div>
-    
-    <div id="tab_setting" class="weui-tab__bd-item">
-      <header class='demos-header'>
-        <h1 class="demos-title">设置</h1>
-      </header>
-      
-      <div class="weui-cells__title">比特币地址</div>
-      <div class="weui-cells">
-          <div class="weui-cell">
-            <div class="weui-cell__bd">
-              <input id="currentAddr" class="weui-input" type="text" placeholder="请设置你的比特币钱包地址" readonly>
-            </div>
-          </div>
-          
-          <div class="button_sp_area" align="right">
-            <a href="javascript:newPrvKey();" class="weui-btn weui-btn_mini weui-btn_primary">生成新地址</a>
-            <a href="javascript:importPrvkey();" class="weui-btn weui-btn_mini weui-btn_primary">导入已有地址</a>
-            <a href="javascript:backupPrvkey();" class="weui-btn weui-btn_mini weui-btn_default">备份地址私钥</a>
-          </div>
-      </div>
-      <p><font size="-2">注意：请备份保存好自己的比特币地址私钥！退出微信重新登录时，微信客户端会删除网页缓存，需要重新导入所备份的比特币地址私钥才能使用。</font></p>
 
       <!--
       <p><br><br></p>
@@ -251,63 +313,80 @@ This sample is for learning and research purposes only. Please abide by local la
       <p><font size="-2">注：设置个人自定义的安全提示，有助于区分假冒工具和网页。</font></p>
       -->
       
-      <p><br></p>     
-      
-      <a id="btn_set_unlock" href="javascript:setUnlockPassword();" class="weui-btn weui-btn_warn" style="width: 80%;">设置解锁密码</a>
-      <p><font size="-2">提示：你的个人数据（如比特币私钥）只在本机保存，设置解锁密码可以提高本地保存数据的安全性。设置解锁密码后，在注册奥丁号和扫码登录时，需要输入正确的解锁密码才能完成操作。</font></p>
-      
+      <div class="weui-cells__title">更多设置</div>
+      <p align="center">
+      <a id="btn_set_unlock" href="javascript:setUnlockPassword();" class="weui-btn  weui-btn_mini weui-btn_warn" style="width: 80%;">设置解锁密码</a>
+      </p>
+      <p class="weui-msg__desc">提示：你的个人数据（如比特币私钥）只在本机保存，设置解锁密码可以提高本地保存数据的安全性。设置解锁密码后，在管理比特币钱包、注册奥丁号和授权登录时，需要输入正确的解锁密码才能完成操作。</font></p>
+      <p align="center" class="weui-footer__text"><br>
+      <a href="https://ppk001.sinaapp.com/docs/help_odintool/" class="weui-btn weui-btn_mini weui-btn_plain-default" style="width: 80%;">关于本应用</a><br>
+      PPk小工具网页版 - PPkTool Micro V0.3.20201226<br>
+      <a href="http://ppkpub.org" class="weui-footer__link">PPk技术社区 PPkPub.org</a>
       <br>
-      
-      <p align="center"><a href="https://www.chainnode.com/post/386612" class="weui-footer__link">关于本应用的更多说明请点击这里查看</a></p>
-      
       <br>
-      <div class="weui-footer ">
-        <p class="weui-footer__text">PPk小工具微信版 - PPk tool for MicroMsg V0.2.20201117 </p>
-        <p class="weui-footer__links">
-          <a href="http://ppkpub.org" class="weui-footer__link">PPk技术社区 PPkPub.org</a>
-        </p>
-        
-      </div>
-      
-      
-      
+      <br>
+      <br>
+      </p>
     </div>
     
   </div>
-
+  
+<?php 
+if($now_app_type == 'ppkpub'){
+//在PPk浏览器里显示底部固定按钮会有问题,暂不显示
+?>
+  <!--<hr>
+  <p align="center">
+    <a href="#tab_pay">
+    <img src="./images/icon_nav_pay.png" alt="收付款" width="32" height="32">
+    </a> 
+    <a href="#tab_scan">
+    <img src="./images/icon_nav_login.png" alt="登录" width="32" height="32">
+    </a> 
+    <a href="javascript:openPPkBrowser();">
+    <img src="./images/icon_nav_browser.png" alt="浏览" width="32" height="32">
+    </a> 
+    <a href="#tab_setting" >
+    <img src="./images/icon_nav_user.png" alt="" width="32" height="32">
+    </a>
+  </p>
+  -->
+<?php 
+}else{
+?>
   <div class="weui-tabbar">
-    <a href="#tab_register" class="weui-tabbar__item">
+    <a href="#tab_pay" class="weui-tabbar__item">
       <div class="weui-tabbar__icon">
-        <img src="./images/icon_nav_msg.png" alt="">
+        <img src="./images/icon_nav_pay.png" alt="">
       </div>
-      <p class="weui-tabbar__label">注册奥丁号</p>
+      <p class="weui-tabbar__label">奥丁号收付款</p>
     </a>
     <a href="#tab_scan" class="weui-tabbar__item">
       <div class="weui-tabbar__icon">
-        <img src="./images/icon_nav_user.png" alt="">
+        <img src="./images/icon_nav_login.png" alt="">
       </div>
       <p class="weui-tabbar__label">以奥丁号登录</p>
     </a>
-    <a href="http://tool.ppkpub.org/demo/browser/?back=https://ppk001.sinaapp.com/odin/" class="weui-tabbar__item">
+    <a href="javascript:openPPkBrowser();" class="weui-tabbar__item" target="_top">
       <div class="weui-tabbar__icon">
         <img src="./images/icon_nav_browser.png" alt="">
       </div>
       <p class="weui-tabbar__label">浏览PPk网络</p>
     </a>
-    <a href="#tab_pay" class="weui-tabbar__item">
+    
+    <a href="#tab_setting" class="weui-tabbar__item">
       <div class="weui-tabbar__icon">
-        <img src="./images/icon_nav_pay.png" alt="">
+        <img id="nav_icon_me" style="border-radius:6px;" src="./images/icon_nav_user.png" alt="">
       </div>
-      <p class="weui-tabbar__label">用奥丁号转账</p>
-    </a>
-    <a href="#tab_setting" id="btn_tab_setting" class="weui-tabbar__item">
-      <div class="weui-tabbar__icon">
-        <img src="./images/icon_nav_cell.png" alt="">
-      </div>
-      <p class="weui-tabbar__label">设置</p>
+      <p class="weui-tabbar__label">我</p>
     </a>
   </div>
+<?php  
+}
+?>
 </div>
+
+
 
 <script src="https://cdn.bootcss.com/jquery/2.1.4/jquery.min.js"></script>
 <script src="js/bitcoinjs-min.js"></script>
@@ -330,10 +409,10 @@ This sample is for learning and research purposes only. Please abide by local la
 <script src="js/fastclick.js"></script>
 
 <script src="js/crypt-md5.js"></script>
-<script src="https://ppk001.sinaapp.com/ppk-lib2/js/0.1.1/common_func.js"></script>
-<script src="https://ppk001.sinaapp.com/ppk-lib2/js/0.1.1/ppk.js"></script>
+<script src="https://ppk001.sinaapp.com/ppk-lib2/js/0.1.2b/common_func.js"></script>
+<script src="https://ppk001.sinaapp.com/ppk-lib2/js/0.1.2b/ppk.js"></script>
 
-<script src="https://ppk001.sinaapp.com/ppk-lib2/js/common/qrcode.js"></script>
+<script src="https://ppk001.sinaapp.com/ppk-lib2/js/common/jquery.qrcode.min.js"></script>
 
 <script>
   $(function() {
@@ -347,8 +426,10 @@ This sample is for learning and research purposes only. Please abide by local la
   const HISTORY_KEY="history-appdemo-ppk001-dest";
   const HISTORY_MAX_SIZE=5;
   const APPDEMO_MARK = "PPkAppDemo(http://ppk001.sinaapp.com/odin/)";
-  const APP_PAY_PREFIX = "https://tool.ppkpub.org/demo/pay/";
+  const APP_PAY_PREFIX = "https://ppk001.sinaapp.com/demo/pay/";
   
+  const IMG_LOADING_SVG = "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjxzdmcgdD0iMTYwODg5NzMwOTI1NCIgY2xhc3M9Imljb24iIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHZlcnNpb249IjEuMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBwLWlkPSIyMDM3IiB3aWR0aD0iMzIiIGhlaWdodD0iMzIiPjxwYXRoIGQ9Ik04NDMuMzA3IDc0Mi4yNGMwIDMuMjE3IDIuNjA3IDUuODI0IDUuODI0IDUuODI0czUuODI0LTIuNjA3IDUuODI0LTUuODI0YTUuODIzIDUuODIzIDAgMCAwLTUuODI0LTUuODI0IDUuODIzIDUuODIzIDAgMCAwLTUuODI0IDUuODI0ek03MTQuNzMxIDg3NC45MTJjMCA2LjM5OCA1LjE4NiAxMS41ODQgMTEuNTg0IDExLjU4NHMxMS41ODQtNS4xODYgMTEuNTg0LTExLjU4NC01LjE4Ni0xMS41ODQtMTEuNTg0LTExLjU4NC0xMS41ODQgNS4xODYtMTEuNTg0IDExLjU4NHpNNTQxLjQxOSA5NDMuMmMwIDkuNjE0IDcuNzk0IDE3LjQwOCAxNy40MDggMTcuNDA4czE3LjQwOC03Ljc5NCAxNy40MDgtMTcuNDA4LTcuNzk0LTE3LjQwOC0xNy40MDgtMTcuNDA4LTE3LjQwOCA3Ljc5NC0xNy40MDggMTcuNDA4eiBtLTE4Ni41Ni05LjE1MmMwIDEyLjc5NSAxMC4zNzMgMjMuMTY4IDIzLjE2OCAyMy4xNjhzMjMuMTY4LTEwLjM3MyAyMy4xNjgtMjMuMTY4LTEwLjM3My0yMy4xNjgtMjMuMTY4LTIzLjE2OC0yMy4xNjggMTAuMzczLTIzLjE2OCAyMy4xNjh6TTE4OS4zNTUgODQ5LjEyYzAgMTYuMDEyIDEyLjk4IDI4Ljk5MiAyOC45OTIgMjguOTkyczI4Ljk5Mi0xMi45OCAyOC45OTItMjguOTkyLTEyLjk4LTI4Ljk5Mi0yOC45OTItMjguOTkyLTI4Ljk5MiAxMi45OC0yOC45OTIgMjguOTkyek03NC43MzEgNzA0LjczNmMwIDE5LjIyOCAxNS41ODggMzQuODE2IDM0LjgxNiAzNC44MTZzMzQuODE2LTE1LjU4OCAzNC44MTYtMzQuODE2LTE1LjU4OC0zNC44MTYtMzQuODE2LTM0LjgxNi0zNC44MTYgMTUuNTg4LTM0LjgxNiAzNC44MTZ6IG0tNDMuMDA4LTE3Ny4yOGMwIDIyLjQxIDE4LjE2NiA0MC41NzYgNDAuNTc2IDQwLjU3NnM0MC41NzYtMTguMTY2IDQwLjU3Ni00MC41NzYtMTguMTY2LTQwLjU3Ni00MC41NzYtNDAuNTc2LTQwLjU3NiAxOC4xNjYtNDAuNTc2IDQwLjU3NnogbTM1LjM5Mi0xNzYuMTI4YzAgMjUuNjI2IDIwLjc3NCA0Ni40IDQ2LjQgNDYuNHM0Ni40LTIwLjc3NCA0Ni40LTQ2LjRjMC0yNS42MjYtMjAuNzc0LTQ2LjQtNDYuNC00Ni40LTI1LjYyNiAwLTQ2LjQgMjAuNzc0LTQ2LjQgNDYuNHogbTEwNi4xNzYtMTQyLjAxNmMwIDI4Ljg0MyAyMy4zODEgNTIuMjI0IDUyLjIyNCA1Mi4yMjRzNTIuMjI0LTIzLjM4MSA1Mi4yMjQtNTIuMjI0YzAtMjguODQzLTIzLjM4MS01Mi4yMjQtNTIuMjI0LTUyLjIyNC0yOC44NDMgMC01Mi4yMjQgMjMuMzgxLTUyLjIyNCA1Mi4yMjR6IG0xNTUuOTA0LTgxLjM0NGMwIDMyLjAyNCAyNS45NiA1Ny45ODQgNTcuOTg0IDU3Ljk4NHM1Ny45ODQtMjUuOTYgNTcuOTg0LTU3Ljk4NC0yNS45Ni01Ny45ODQtNTcuOTg0LTU3Ljk4NC01Ny45ODQgMjUuOTYtNTcuOTg0IDU3Ljk4NHogbTE3NS4xMDQtNS4wNTZjMCAzNS4yNCAyOC41NjggNjMuODA4IDYzLjgwOCA2My44MDhzNjMuODA4LTI4LjU2OCA2My44MDgtNjMuODA4YzAtMzUuMjQtMjguNTY4LTYzLjgwOC02My44MDgtNjMuODA4LTM1LjI0IDAtNjMuODA4IDI4LjU2OC02My44MDggNjMuODA4eiBtMTYwLjMyIDcyLjEyOGMwIDM4LjQyMSAzMS4xNDcgNjkuNTY4IDY5LjU2OCA2OS41NjhzNjkuNTY4LTMxLjE0NyA2OS41NjgtNjkuNTY4LTMxLjE0Ny02OS41NjgtNjkuNTY4LTY5LjU2OC02OS41NjggMzEuMTQ3LTY5LjU2OCA2OS41Njh6IG0xMTMuOTIgMTM1LjQ4OGMwIDQxLjYzOCAzMy43NTQgNzUuMzkyIDc1LjM5MiA3NS4zOTJzNzUuMzkyLTMzLjc1NCA3NS4zOTItNzUuMzkyLTMzLjc1NC03NS4zOTItNzUuMzkyLTc1LjM5Mi03NS4zOTIgMzMuNzU0LTc1LjM5MiA3NS4zOTJ6IG00NS4zMTIgMTc1LjQ4OGMwIDQ0Ljg1NCAzNi4zNjIgODEuMjE2IDgxLjIxNiA4MS4yMTZzODEuMjE2LTM2LjM2MiA4MS4yMTYtODEuMjE2YzAtNDQuODU0LTM2LjM2Mi04MS4yMTYtODEuMjE2LTgxLjIxNi00NC44NTQgMC04MS4yMTYgMzYuMzYyLTgxLjIxNiA4MS4yMTZ6IiBmaWxsPSIjMTI5NmRiIiBwLWlkPSIyMDM4Ij48L3BhdGg+PC9zdmc+";
+
   var mObjWallets;
   var mCurrentQrCodeText="";
   var mSelectingAddress=false;
@@ -366,7 +447,7 @@ This sample is for learning and research purposes only. Please abide by local la
   var PRIVATE_KEY_VERSION = 0x80;
   var ADDRESS_URL_PREFIX = 'http://blockchain.info'
 
-  var gBoolWeixinEnabled=false;
+  var gBoolWeixinScanEnabled=false;
   
   var gStrCurrentODIN="";
   var gStrCurrentAddress;
@@ -394,7 +475,7 @@ This sample is for learning and research purposes only. Please abide by local la
     nonceStr: '<?php echo $signPackage["nonceStr"];?>',
     signature: '<?php echo $signPackage["signature"];?>',
     jsApiList: [
-      'checkJsApi', 'scanQRCodeForLogin'
+      'checkJsApi', 'scanQRCode'
     ]
   });
   
@@ -405,9 +486,10 @@ This sample is for learning and research purposes only. Please abide by local la
     
   wx.ready(function() {
         wx.checkJsApi({
-            jsApiList : ['scanQRCodeForLogin'],
+            jsApiList : ['scanQRCode'],
             success : function(res) {
-
+                //alert("支持在这里扫一扫");
+                gBoolWeixinScanEnabled=true;
             }
         });
         /*
@@ -421,7 +503,6 @@ This sample is for learning and research purposes only. Please abide by local la
             }
         });
         */
-        gBoolWeixinEnabled=true;
     });
   
   
@@ -435,6 +516,22 @@ This sample is for learning and research purposes only. Please abide by local la
           promptConfirmLogin(login_confirm_url);
       }
       
+      var my_odin_uri = getQueryString('me');
+      if(my_odin_uri!=null && my_odin_uri.length>0){
+        my_odin_uri=PPKLIB.formatPPkURI(my_odin_uri,true);
+        if(my_odin_uri!=null){
+            gStrCurrentODIN = my_odin_uri;
+            $('#currentODIN').val(gStrCurrentODIN);
+            $('#loginODIN').val(gStrCurrentODIN);
+        }
+      }
+      /*
+      //控制头像图标的位置
+      var qrcode_convas_rect = $('#qrcode_payto')[0].children[0].getBoundingClientRect();
+      var left = qrcode_convas_rect.left + qrcode_convas_rect.width/2 - 32/2;
+      var top = qrcode_convas_rect.top + qrcode_convas_rect.height/2 - 32/2-2;
+      $("#dest_title").before('<img id="qrCodeIcoPayTo" style="vertical-align:middle;position:absolute;z-index:999;width:32px;height:32px;left:'+left+'px;top:'+top+'px;border-radius:3px;background-color: #fff;background-blend-mode: multiply;" src="https://tool.ppkpub.org/image/user.png" alt="">');
+      */
       $("#select_dest_odin").select({
         title: "选择收款人",
         input:"",
@@ -445,42 +542,50 @@ This sample is for learning and research purposes only. Please abide by local la
         onOpen: function ( ) {
           mSelectingAddress = true;
         },
-        //onChange: function(d) {
-        //  console.log("onChange dest_wallet_address:  ", d.values);
-        //  mCurrentQrCodeText=d.values;
-        //  showQrCode(    );
-        //},
-        onClose: function (d) {
-          if( typeof(d.data.values)!='undefined' ){
-              console.log('selected dest_wallet_address:', d.data.values);
-              document.getElementById("dest_odin_uri").value= d.data.values;
+        onChange: function(d) {
+          if( typeof(d.values)!='undefined' ){
+              console.log("onChange dest_wallet_address:  ", d.values);
+              if(d.values==""){
+                  inputPaytoODIN();
+              }else{
+                  $("#payto_odin_uri").html( d.values );
+                  refreshPaytoInfo( );  
+              }
           }
+        },
+        onClose: function (d) {
+          /*if( typeof(d.data.values)!='undefined' ){
+              console.log('selected dest_wallet_address:', d.data.values);
+              document.getElementById("payto_odin_uri").value= d.data.values;
+          }*/
 
           mSelectingAddress = false;
 
-          refreshDestQrCode( );  
+          //refreshPaytoInfo( );  
         }
       });
               
      meAsDest();
   });
+  
+function openPPkBrowser(){
+  //判断当前微信环境是否为小程序
+  if(window.__wxjs_environment==='miniprogram'){   
+    console.log("在小程序");
+    $.alert("小程序里暂时无法浏览PPk网络。<br>请等待后续新版本升级...");
+  }else{
+    $.alert("正在打开PPk浏览工具...");
+    location.href="http://ppk001.sinaapp.com/demo/browser/?back=https://ppk001.sinaapp.com/odin/";
+  }  
+}
 
-
-function refreshDestQrCode( ){
-    if(mSelectingAddress){
-        //需检查确保先关闭地址选择列表后再刷新,避免列表组件异常丢失
-        //mRefreshAfterCloseAddessList=true;
-        $("#select_dest_odin").select("close");
-        return;
-    }
-    
+function refreshPaytoInfo( ){
     mCurrentQrCodeText = "";
-    
-    document.getElementById('qrcode_img').innerHTML ="请输入奥丁号，以生成收款码";
-    document.getElementById("scan_address").innerHTML = "";
-    
-    
-    var str_dest = document.getElementById("dest_odin_uri").value.trim();
+
+    //$("#dest_title").html("");
+    $("#dest_title").html("请输入奥丁号，以生成收款码") ;
+
+    var str_dest = $("#payto_odin_uri").html();
     if(str_dest.length==0){
         return;
     }
@@ -488,11 +593,11 @@ function refreshDestQrCode( ){
     var dest_odin_uri=PPKLIB.formatPPkURI(str_dest,true);
     
     if(dest_odin_uri==null){
-        document.getElementById('qrcode_img').innerHTML ="请输入有效的奥丁号！";
+        $("#dest_title").html("请输入有效的奥丁号！") ;
         return;
     }
     
-    document.getElementById("dest_odin_uri").value = dest_odin_uri;
+    $("#payto_odin_uri").val(dest_odin_uri)
     
 
     //更新输入历史
@@ -513,27 +618,175 @@ function refreshDestQrCode( ){
         console.error(error);
     }
     
-    waitingButton("btn_refreshDestQrCode");
+    genQrCode();
+}
 
-    //生成二维码
-    mCurrentQrCodeText = APP_PAY_PREFIX + '?ppkpayto=' + encodeURIComponent(dest_odin_uri) ;
+function genQrCode(  ){
+    //waitingButton("btn_refreshQrCode");
+    var dest_odin_uri = $("#payto_odin_uri").html();
+    var dest_title = $("#dest_title").html().trim();
+    if( dest_title.trim().length==0 ){
+        dest_title="收款人";
+    }
 
-    document.getElementById("scan_address").innerHTML = dest_odin_uri;
-    document.getElementById('qrcode_img').innerHTML ="二维码生成中...";
-   
-    console.log("mCurrentQrCodeText: "+mCurrentQrCodeText);
-    generateQrCodeImg( mCurrentQrCodeText );
+    //重置二维码
+    clearOldPaytoCode(true);
     
-    finishedButton("btn_refreshDestQrCode");
+    $("#dest_title").html("二维码生成中...")
+    //$("#qrcode_payto").html("二维码生成中...");
+    
+    var use_cache=false;
+    PPKLIB.getPPkData(dest_odin_uri,paytoPPkDataCallback, use_cache);
+
+    //finishedButton("btn_refreshQrCode");
+}
+
+function clearOldPaytoCode(boolShowLoading){
+    if(boolShowLoading){
+        $("#qrCodeIcoPayTo").attr('src',IMG_LOADING_SVG);
+        
+        $('#qrcode_payto').html('<center><img src="https://tool.ppkpub.org/image/blank.png" width="100" height="100"></center>');
+    }else{
+        if(typeof($('#qrcode_payto')[0].children[0]) != 'undefined'){
+            $('#qrcode_payto')[0].children[0].remove();
+        }
+    }  
+}
+
+function paytoPPkDataCallback(status,result){
+    var bool_get_data_ok = false;
+    var dest_title = "收款人";
+    var dest_avatar = "https://tool.ppkpub.org/image/user.png";
+    if('OK'==status){
+        try{
+            var obj_pttp_data = parseJsonObjFromAjaxResult(result);
+            //document.getElementById("debug_data").value=JSON.stringify(obj_pttp_data);
+            var tmp_content = PPKLIB.getContentFromData(obj_pttp_data);
+            //document.getElementById("debug_data").value=tmp_str;
+            
+            var obj_content = JSON.parse( tmp_content );
+            
+            if(typeof(obj_content) == 'undefined' || obj_content==null){
+                dest_title = "不存在的标识或者解析有误，请刷新下试试！";
+            }else if(typeof(obj_content.x_did) != 'undefined' ){
+                var obj_did = obj_content.x_did;
+                if(typeof(obj_did.name) != 'undefined' )
+                    dest_title = obj_did.name;
+                
+                if(typeof(obj_did.avatar) != 'undefined' ){
+                    console.log("obj_did.avatar="+obj_did.avatar);
+                    
+                    dest_avatar = obj_did.avatar;
+                }
+                
+                bool_get_data_ok=true;
+            }
+        }catch(error){
+            console.log("paytoPPkDataCallback() error:"+error);
+            dest_title = "收款人信息有误，请重试！";
+        }
+    }else{
+        dest_title = "获取收款人信息出错了，请重试！";
+    }
+
+    $("#dest_title").html(dest_title);
+    $("#qrCodeIcoPayTo").attr('src',dest_avatar);
+    
+    if(bool_get_data_ok){
+        refreshQrCode();
+        
+        if($("#payto_odin_uri").html()==gStrCurrentODIN){
+            $('#current_avatar').attr("src",dest_avatar);
+            $('#nav_icon_me').attr("src",dest_avatar);
+            $('#current_title').html(dest_title);
+        }
+    }
+}
+
+function refreshQrCode(  ){
+    //waitingButton("btn_refreshQrCode");
+    var dest_odin_uri = $("#payto_odin_uri").html();
+    var dest_title = $("#dest_title").html().trim();
+    if( dest_title.trim().length==0 ){
+        dest_title="收款人";
+    }
+
+    //清除旧二维码
+    clearOldPaytoCode(false);
+    
+    //生成二维码
+    mCurrentQrCodeText = APP_PAY_PREFIX + '?ppkpayto=' + encodeURIComponent(dest_odin_uri) + '&title=' + encodeURIComponent(dest_title)  ;
+
+    $('#qrcode_payto').qrcode({width: 100,height: 100,text: mCurrentQrCodeText});
+    
+    $("#dest_title").html(dest_title);
+    
+}
+
+
+function inputPaytoODIN(){
+  $.prompt({
+      title: '换一个收款奥丁号',
+      text: '请输入数字或英文名称的奥丁号',
+      input: "",
+      empty: false, // 是否允许为空
+      
+      onOK: function (input) {
+        var dest_odin_uri=PPKLIB.formatPPkURI(input.trim(),true);
+        if( dest_odin_uri.startsWith("ppk:")){
+            $("#payto_odin_uri").html(dest_odin_uri);
+            refreshPaytoInfo();
+            return true;
+        }else{
+            alert("请输入正确的奥丁号");
+            return false;
+        }
+      },
+      onCancel: function () {
+        //点击取消
+      }
+    });   
+}
+
+function inputPaytoTitle(){
+  var dest_odin_uri = $("#payto_odin_uri").html();
+  if( dest_odin_uri.trim().length==0 ){
+      //尚未设置有效奥丁号
+      inputPaytoODIN(); 
+  }else{
+      $.prompt({
+          title: '修改显示的收款人名称',
+          text: '请输入临时名称，方便截图和分享',
+          input: $("#dest_title").html(),
+          empty: false, // 是否允许为空
+          onOK: function (input) {
+            $("#dest_title").html(input.trim());
+            refreshQrCode();
+            return true;
+          },
+          onCancel: function () {
+            //点击取消
+          }
+        });   
+  }
 }
 
 function selectHistoryODIN(){
+    if(mSelectingAddress){
+       $("#select_dest_odin").select("close");
+       return false;   
+    }
 
     var tmp_address_array = [];
     
+    tmp_address_array[0]={
+                    title:'输入新的收款奥丁号',
+                    value:""
+                };
+                
     if( gStrCurrentODIN!=null && gStrCurrentODIN.length>0 ) {
-        tmp_address_array[0]={
-                    title:'自己( ' + gStrCurrentODIN +' )',
+        tmp_address_array[1]={
+                    title:'我( ' + gStrCurrentODIN +' )',
                     value:gStrCurrentODIN
                 };
     }
@@ -576,32 +829,39 @@ function testQrCode(){
 function shareQrCode(){
     if(mCurrentQrCodeText.length>0){
         $("#btn_shareQrCode").html("正在生成...");
-        location.href = APP_PAY_PREFIX + "qr/?ppkpayto="+ encodeURIComponent($("#scan_address").html());//location.href += "&title=" + encodeURIComponent($("#scan_title").html());
+        location.href = APP_PAY_PREFIX + "qr/index32.html?ppkpayto="+ encodeURIComponent($("#payto_odin_uri").html()) + "&title=" + encodeURIComponent($("#dest_title").html())+ "&avatar=" + encodeURIComponent($("#qrCodeIcoPayTo").attr("src"));
     }else
         commonAlert("请先输入有效的收款人奥丁号");
 }
 
+function gotoSetting(){
+    //<div id="tab_pay"  class="weui-tab__bd-item weui-tab__bd-item--active">
+    $("#tab_pay").removeClass("weui-tab__bd-item--active");
+    $("#tab_scan").removeClass("weui-tab__bd-item--active");
+    $("#tab_setting").addClass("weui-tab__bd-item--active");
+}
 
-
+/*
 function generateQrCodeImg(str_qr_code){
     var typeNumber = 0;
     var errorCorrectionLevel = 'H';
     var qr = qrcode(typeNumber, errorCorrectionLevel);
     qr.addData(str_qr_code);
     qr.make();
-    document.getElementById('qrcode_img').innerHTML = qr.createImgTag();
+    document.getElementById('qrcode_payto').innerHTML = qr.createImgTag();
 }
+*/
 
 function meAsDest(){
-    document.getElementById("dest_odin_uri").value=gStrCurrentODIN;
-    refreshDestQrCode( );
+    $("#payto_odin_uri").html( gStrCurrentODIN );
+    refreshPaytoInfo( );
 }
 
 
 function useHistoryDest(str_old_odin){
     document.getElementById('history_odins_area').style.display="none";
-    document.getElementById('dest_odin_uri').value = str_old_odin ;
-    refreshDestQrCode(false);
+    $("#payto_odin_uri").html( str_old_odin );
+    refreshPaytoInfo(false);
 }
 
 function getHistoryDest( ){
@@ -619,9 +879,9 @@ function getHistoryDest( ){
     }
 }
 
-  function scanQRCodeForLogin(){
-      if(!gBoolWeixinEnabled){
-        alert("请在微信客户端里打开此工具！");
+  function scanForLogin(){
+      if(!gBoolWeixinScanEnabled){
+        alert("请切换使用微信主界面的扫一扫！");
         return;
       }
       
@@ -631,7 +891,7 @@ function getHistoryDest( ){
           return;
       }
       
-      wx.scanQRCodeForLogin({
+      wx.scanQRCode({
         needResult : 1, // 默认为0，扫描结果由微信处理，1则直接返回扫描结果，
         scanType : [ "qrCode"], // 可以指定扫二维码还是一维码，默认二者都有
         success : function(res) {
@@ -660,13 +920,12 @@ function getHistoryDest( ){
   }
   
   function registerNewODIN(){
-      var currentAddress=$('#currentAddr').val();
-      if(currentAddress.length==0){
+      var currentBtcAddressess=$('#currentBtcAddress').val();
+      if(currentBtcAddressess.length==0){
           $.confirm({
               title: '提示',
               text: '请先设置你的比特币钱包地址',
               onOK: function () {
-                //$("btn_tab_setting").click();
                 importPrvkey();
               },
               onCancel: function () {
@@ -687,15 +946,16 @@ function getHistoryDest( ){
       }else if(balance>0.0002){
          $.alert('当前地址余额超过了0.0002 BTC<br>请调低余额或使用新地址再重试！<br>提示：注册奥丁号只花费很少的矿工费用，一般有0.0001BTC就足够体验，注册多个奥丁号了。<br>出于安全考虑，在此工具里所使用地址的余额不要超过0.0002BTC，且单个地址不要注册太多奥丁号（不超过20个为宜）！ 如有更多功能需求，建议使用PPk安卓应用。','安全提示');
       }else{
-        if(!unlockLocalPrivateData()){
-          return;
-        }
-        buildRegsiterTransaction();
+        unlockLocalPrivateData(function(){
+              buildRegsiterTransaction();
+            }
+        );
+        
       }
   }
   
   function buildRegsiterTransaction() {
-    var addr = $('#currentAddr').val();
+    var addr = $('#currentBtcAddress').val();
     var unspent = $('#txUnspent').val();
     var balance = parseFloat($('#addressBalance').val());
     var fee = parseFloat('0'+$('#txFee').val());
@@ -773,7 +1033,7 @@ function getHistoryDest( ){
   }
   
   function sendTX() {
-    var txAddr = $('#currentAddr').val();
+    var txAddr = $('#currentBtcAddress').val();
 
     var r = '';
     if (txAddr!='' && txAddr!=TX.getAddress())
@@ -935,27 +1195,35 @@ function getHistoryDest( ){
 
   
   function viewRegisteredODIN(){
-      var currentAddress=$('#currentAddr').val();
-      if(currentAddress.length==0){
+      var currentBtcAddressess=$('#currentBtcAddress').val();
+      if(currentBtcAddressess.length==0){
           $.confirm({
               title: '提示',
               text: '请先设置你的比特币钱包地址',
               onOK: function () {
-                //$("btn_tab_setting").click();
                 importPrvkey();
               },
               onCancel: function () {
               }
             });
       }else{
-          window.location.href = "http://tool.ppkpub.org:9876/odin?address="+currentAddress;
+          gotoURL('http://47.114.169.156:9876/odin?address='+currentBtcAddressess,'正在打开查询工具，请稍等' );
       }
   }
   
+  function gotoURL(url,message){
+    if( typeof( message ) != undefined )
+        $.alert(message);
+    else
+        $.alert("正跳转到 "+ url);
+    
+    window.location.href=url;
+  }
+  
   function fastLoginPNS(){
-      $.ajax({
+    $.ajax({
         type: "GET",
-        url: "https://tool.ppkpub.org/ap2/login_uuid.php",
+        url: "https://ppk001.sinaapp.com/ap2/login_uuid.php?page=pns_set_localdb",
         xhrFields:{
             withCredentials:true  //允许客户端带上cookie，这样才能保证session_id跨域一致
         },
@@ -971,7 +1239,7 @@ function getHistoryDest( ){
                 promptConfirmLogin(confirm_url);  
             }else{
                 //不能直接登录，则采用跳转页面的方式
-                window.location.href = 'https://tool.ppkpub.org/ap2/';
+                window.location.href = 'https://ppk001.sinaapp.com/ap2/';
             }
         }
     });
@@ -983,8 +1251,7 @@ function getHistoryDest( ){
               title: '提示',
               text: '请先设置你的比特币地址和奥丁号',
               onOK: function () {
-                //$("btn_tab_setting").click();
-                importPrvkey();
+                gotoSetting();
               },
               onCancel: function () {
               }
@@ -993,20 +1260,23 @@ function getHistoryDest( ){
           return;
       }
       
-      if(!unlockLocalPrivateData()){
-          return;
-      }
-      
       $.confirm({
           title: '确认授权 '+gStrCurrentODIN+' 登录下述网址吗？',
           text: loginURL,
           onOK: function (input) {
-            confirmLogin(loginURL,gStrCurrentODIN);
+              unlockLocalPrivateData(function(){
+                 confirmLogin(loginURL,gStrCurrentODIN);
+              });
           },
           onCancel: function () {
             //点击取消
           }
-        });
+      });
+          
+      
+        
+      
+      
         
       /*
       $.prompt({
@@ -1023,7 +1293,10 @@ function getHistoryDest( ){
         });*/
   }
   
-  function formatPPkURI(ppk_uri){
+  function formatOldPPkURI(ppk_uri){
+      if(ppk_uri==null)
+          return null;
+      
       var old_resoure_mark_posn=ppk_uri.lastIndexOf("#");
       if(old_resoure_mark_posn==ppk_uri.length-1) {//自动替换旧版URI中的后缀标志符#
         ppk_uri = ppk_uri.substring(0, old_resoure_mark_posn)+"*";;
@@ -1035,15 +1308,16 @@ function getHistoryDest( ){
     var local_encrypted=getLocalConfigData('local_encrypted');
     var local_prvkey_encrypted=getLocalConfigData('local_prvkey_encrypted');
     var local_address=getLocalConfigData('local_address');
-    var local_odin=formatPPkURI(getLocalConfigData('local_odin'));
+    var local_odin=formatOldPPkURI(getLocalConfigData('local_odin'));
     var local_txfee=getLocalConfigData('local_txfee');
-    console.log("local_odin="+local_odin+"\nlocal_encrypted="+local_encrypted+"\nlocal_prvkey_encrypted="+local_prvkey_encrypted+"\nlocal_address="+local_address+"\nlocal_txfee="+local_txfee);
+    //console.log("local_odin="+local_odin+"\nlocal_encrypted="+local_encrypted+"\nlocal_prvkey_encrypted="+local_prvkey_encrypted+"\nlocal_address="+local_address+"\nlocal_txfee="+local_txfee);
     
     gBoolEncrypted = (local_encrypted=='ON');
 
     if(local_odin!=null){
         gStrCurrentODIN=local_odin;
-        $('#loginODIN').val(local_odin);
+        $('#currentODIN').val(gStrCurrentODIN);
+        $('#loginODIN').val(gStrCurrentODIN);
     }
     
     if(local_prvkey_encrypted!=null){
@@ -1067,8 +1341,7 @@ function getHistoryDest( ){
   }
   
   function setCurrentAddress(address){
-      $('#currentAddr').val(address);
-      $('#registerAdddress').val( address );
+      $('#currentBtcAddress').val(address);
       
       refreshAddressInfo();
   }
@@ -1083,9 +1356,10 @@ function getHistoryDest( ){
   
   
   function getAddressInfo() {
-    var addr = $('#currentAddr').val();
+    var addr = $('#currentBtcAddress').val();
 
-    var urlUnspent = 'https://blockchain.info/unspent?cors=true&active=' + addr ;
+    //var urlUnspent = 'https://blockchain.info/unspent?cors=true&active=' + addr ;
+    var urlUnspent = 'https://tool.ppkpub.org/ppkapi2/proxy.php?url=https%3A%2F%2Fblockchain.info%2Funspent%3Fcors%3Dtrue%26active%3D' + addr ;
             //'http://btc.blockr.io/api/v1/address/unspent/'+ addr + '?multisigs=1'
             //'https://blockexplorer.com/api/addr/'+ addr + '/utxo' ;
 
@@ -1151,7 +1425,7 @@ function getHistoryDest( ){
     var r = JSON.parse(text);
     txUnspent = JSON.stringify(r, null, 4);
     $('#txUnspent').val(txUnspent);
-    var address = $('#currentAddr').val();
+    var address = $('#currentBtcAddress').val();
     TX.parseInputs(txUnspent, address);
     var value = TX.getBalance();
     var fval = Bitcoin.Util.formatValue(value);
@@ -1207,13 +1481,12 @@ function getHistoryDest( ){
   }
   
   function changeCurrentODIN(){
-      var currentAddress=$('#currentAddr').val();
-      if(currentAddress.length==0){
+      var currentBtcAddressess=$('#currentBtcAddress').val();
+      if(currentBtcAddressess.length==0){
           $.confirm({
               title: '提示',
               text: '请先设置你的比特币钱包地址',
               onOK: function () {
-                //$("btn_tab_setting").click();
                 importPrvkey();
               },
               onCancel: function () {
@@ -1224,7 +1497,7 @@ function getHistoryDest( ){
       }
       $.prompt({
           title: '请输入用作身份标识的奥丁号',
-          text: '输入用下述地址注册的奥丁号：<br>'+currentAddress+'<br>如该比特币地址尚未注册奥丁号，请先注册后再设置使用。',
+          text: '输入用下述地址注册的奥丁号：<br>'+currentBtcAddressess+'<br>如该比特币地址尚未注册奥丁号，请先注册后再设置使用。',
           input: gStrLastRegisteredODIN.length>0 ? gStrLastRegisteredODIN:gStrCurrentODIN,
           empty: false, // 是否允许为空
           onOK: function (input) {
@@ -1248,7 +1521,7 @@ function getHistoryDest( ){
       /*
      $.modal({
           title: "请输入用作身份标识的奥丁号",
-          text: '请输入用下述比特币地址注册的奥丁号：<br>'+currentAddress+"<br>如该比特币地址尚未注册奥丁号，请先注册后再设置使用。",
+          text: '请输入用下述比特币地址注册的奥丁号：<br>'+currentBtcAddressess+"<br>如该比特币地址尚未注册奥丁号，请先注册后再设置使用。",
           buttons: [
             { text: "取消", className: "default", onClick: function(){ console.log(3)} },
             { text: "确认", onClick: function(){ console.log(1)} },
@@ -1263,10 +1536,13 @@ function getHistoryDest( ){
       if(!gStrCurrentODIN.endsWith("*")) //自动补全标识后缀
           gStrCurrentODIN += "*";
                 
+      $('#currentODIN').val(gStrCurrentODIN);
       $('#loginODIN').val(gStrCurrentODIN);
       saveLocalConfigData('local_odin',gStrCurrentODIN);
 
       $.toptip("你的身份奥丁号已设为<br>"+gStrCurrentODIN,'success');
+      
+      meAsDest();
   }
   
   function setTxFee(){
@@ -1295,20 +1571,19 @@ function getHistoryDest( ){
   }
   
   function newPrvKey(){
-      var currentAddress=$('#currentAddr').val();
-      if(currentAddress.length!=0){
-          if(!unlockLocalPrivateData()){
-              return;
-          }
+      var currentBtcAddressess=$('#currentBtcAddress').val();
+      if(currentBtcAddressess.length!=0){
           $.confirm({
               title: '确认生成新地址吗？',
-              text: '注意：已有地址数据将被覆盖，请确认已备份好下述地址的私钥！<br>'+currentAddress,
+              text: '注意：已有地址数据将被覆盖，请确认已备份好下述地址的私钥！<br>'+currentBtcAddressess,
               onOK: function () {
-                generatePrvkey();
+                  unlockLocalPrivateData(function(){
+                    generatePrvkey();
+                  });
               },
               onCancel: function () {
               }
-            });
+          });
       }else{
           generatePrvkey();
       }
@@ -1332,45 +1607,57 @@ function getHistoryDest( ){
     }
   }
   
-  function importPrvkey(){
-      if(!unlockLocalPrivateData()){
-          return false;
-      }
-      
-     /*
-      //注意：WEUI的这个输入对话框，在IOS版本下可能无法粘贴
-      $.prompt({
-          title: '导入比特币地址',
-          text: '请输入要导入的比特币地址私钥（以5,K或L起始）',
-          input: "",
-          empty: false, // 是否允许为空
-          onOK: function (input) {
-            var p=getEcKey(input);
-            if(p==null){
-                alert("请输入正确的比特币地址私钥（以5,K或L起始的字符串）");
-            }else{
-                setLocalPrvkey(input,p);
-            }
-          },
-          onCancel: function () {
-            //点击取消
-          }
-        });
-    */
-     
-    var input_str = prompt("请输入要导入的比特币地址私钥（以5,K或L起始）", "");
-    if( input_str!=null && input_str.length>0 ){
-        var p=getEcKey(input_str);
-        if(p==null){
-            $.alert("请输入正确的比特币地址私钥（以5,K或L起始的字符串）","出错了");
-        }else{
-            setLocalPrvkey(input_str,p);
-        }
+  function importPrvkey(useInputPrvkeyArea){
+     if($('#currentBtcAddress').val().length == 0){
+         promptImportPrvKey(useInputPrvkeyArea);
+     }else{
+         unlockLocalPrivateData( function(){promptImportPrvKey(useInputPrvkeyArea);} );
      }
-     
      return false;
   }
+  
+  function promptImportPrvKey(useInputPrvkeyArea){
+      if( typeof(useInputPrvkeyArea)!=undefined && useInputPrvkeyArea) {
+          //启用私钥输入栏拉粘贴导入私钥，避免ios里对话框方式无法粘贴的问题
+          $("#inputPrvkeyArea").show();
+      }else{
+          //注意：默认弹出WEUI的输入对话框到来导入私钥，但在IOS版本下可能无法粘贴
+          $.prompt({
+              title: '导入比特币地址',
+              text: '请输入要导入的比特币地址私钥（以5,K或L起始）<br>如果无法复制粘贴，请换到“设置”界面里导入。',
+              input: "",
+              empty: false, // 是否允许为空
+              onOK: function (input) {
+                var p=getEcKey(input);
+                if(p==null){
+                    alert("请输入正确的比特币地址私钥（以5,K或L起始的字符串）");
+                }else{
+                    setLocalPrvkey(input,p);
+                }
+              },
+              onCancel: function () {
+                //点击取消
+              }
+            });
+      }   
+  }
 
+  function confirmImportPrvkey(){
+     var input = $("#inputPrvkey").val().trim();
+     
+     var p=null;
+     if(input.length>0){
+         p=getEcKey(input);
+     }
+
+     if(p==null){
+        alert("请输入正确的比特币地址私钥（以5,K或L起始的字符串）");
+     }else{
+        setLocalPrvkey(input,p);
+        $("#inputPrvkey").val("");
+        $("#inputPrvkeyArea").hide();
+     }
+  }
   
   function setLocalPrvkey(str_prvkey,obj_prvkey){
     var encrypted = aesEncrypteData(gStrUnlockPassword,str_prvkey);
@@ -1389,6 +1676,7 @@ function getHistoryDest( ){
     //比特币地址更改后，奥丁号身份自动重置
     gStrCurrentODIN = "";
     gStrLastRegisteredODIN="";
+    $('#currentODIN').val(gStrCurrentODIN);
     $('#loginODIN').val(gStrCurrentODIN);
     saveLocalConfigData('local_odin',gStrCurrentODIN);
     
@@ -1399,39 +1687,40 @@ function getHistoryDest( ){
   }
   
   function backupPrvkey(){
-      if(!unlockLocalPrivateData()){
-          return;
-      }
-      $.alert(gStrTempPrvkey, "请复制和备份下述私钥");
+      unlockLocalPrivateData(function(){
+          $.alert(gStrTempPrvkey, "请复制和备份下述私钥");
+        }
+      );
   }
   
   function setUnlockPassword(){
-      var currentAddress=$('#currentAddr').val();
-      if(currentAddress.length==0){
+      var currentBtcAddressess=$('#currentBtcAddress').val();
+      if(currentBtcAddressess.length==0){
           $.alert('请先设置有效的比特币钱包地址后，再设置解锁密码','提示');
           return;
       }
-
-      if(!unlockLocalPrivateData()){
-          return;
-      }
-      $.prompt({
-          title: '修改解锁密码',
-          text: '请输入新的解锁密码（长度需6个字符以上）',
-          input: '',
-          empty: false, // 是否允许为空
-          onOK: function (input) {
-            if(input.length<6){
-                alert("新密码的长度需6个字符以上！");
-                setUnlockPassword( );
-            }else{
-                confirmUnlockPassword(input);
-            }
-          },
-          onCancel: function () {
-            //点击取消
-          }
-        });
+      
+      unlockLocalPrivateData(function(){
+          $.prompt({
+              title: '修改解锁密码',
+              text: '请输入新的解锁密码（长度需6个字符以上）',
+              input: '',
+              empty: false, // 是否允许为空
+              onOK: function (input) {
+                if(input.length<6){
+                    alert("新密码的长度需6个字符以上！");
+                    setUnlockPassword( );
+                }else{
+                    confirmUnlockPassword(input);
+                }
+              },
+              onCancel: function () {
+                //点击取消
+              }
+            });
+        }
+      );
+      
   }
   
   function confirmUnlockPassword(newPassword){
@@ -1445,8 +1734,14 @@ function getHistoryDest( ){
                 $.alert("两次输入的解锁密码不一致，请重试！", "出错了");
             }else{
                 gStrUnlockPassword = newPassword;
+                gStrCurrentPrvkeyEncrypted = aesEncrypteData(newPassword,gStrTempPrvkey);
                 saveLocalConfigData('local_encrypted','ON');
-                saveLocalConfigData('local_prvkey_encrypted',aesEncrypteData(newPassword,gStrTempPrvkey));
+                saveLocalConfigData('local_prvkey_encrypted',gStrCurrentPrvkeyEncrypted);
+                
+                gBoolEncrypted=true;
+                gStrUnlockPassword="";
+                gStrTempPrvkey="";
+                gObjTempKey=null;
             }
           },
           onCancel: function () {
@@ -1454,7 +1749,7 @@ function getHistoryDest( ){
           }
         });
   }
-
+  
   function fullTrim(message)
   {
     message = message.replace(/^\s+|\s+$/g, '');
@@ -1595,12 +1890,44 @@ function getHistoryDest( ){
     return CryptoJS.enc.Utf8.stringify(decrypted);  
   }
   
-  function unlockLocalPrivateData(){
-      if(gStrTempPrvkey.length>0 && gObjTempKey!=null) //已经解锁过
-          return true;
+  function unlockLocalPrivateData(callback_success){
+      if(gStrTempPrvkey.length>0 && gObjTempKey!=null){ //已经解锁过
+          callback_success();
+          return;
+      }
       
       if(gBoolEncrypted){
         //需要输入解锁密码
+        $.prompt({
+          title: '请输入解锁密码',
+          text: '',
+          input: '',
+          empty: false, // 是否允许为空
+          onOK: function (input) {
+            if(input.length==0){
+                alert("需要输入正确的解锁密码，请重试");
+            }else{
+                var dencrypted = aesDencrypteData(  input , gStrCurrentPrvkeyEncrypted )
+                if(dencrypted==null || dencrypted.length==0){
+                    alert("解锁密码不正确，请重试","出错了");
+                }else{
+                    gStrUnlockPassword = input;
+                    gStrTempPrvkey = dencrypted;
+                    
+                    if(gStrTempPrvkey.length>0){
+                        gObjTempKey = getEcKey(gStrTempPrvkey);
+                        
+                        callback_success();
+                    }
+                }
+            }
+          },
+          onCancel: function () {
+            //点击取消
+            return false;
+          }
+        });
+        /*
         var input = prompt("请输入解锁密码", "");
         if( input==null ){ //取消
            return false;
@@ -1616,16 +1943,19 @@ function getHistoryDest( ){
         
         gStrUnlockPassword = input;
         gStrTempPrvkey = dencrypted;
+        */
+        
+        
       }else{
         gStrUnlockPassword = "";
         gStrTempPrvkey=gStrCurrentPrvkeyEncrypted;
+        
+        if(gStrTempPrvkey.length>0){ //BTC地址有效
+            gObjTempKey = getEcKey(gStrTempPrvkey);
+            
+            callback_success();
+        }
       }
-      
-      if(gStrTempPrvkey.length>0)
-        gObjTempKey = getEcKey(gStrTempPrvkey);
-     
-      //setCurrentAddress(gObjCurrentKey.address);
-      return true;
   }
 </script>
 </body>
